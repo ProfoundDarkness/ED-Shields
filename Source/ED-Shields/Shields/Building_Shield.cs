@@ -177,7 +177,7 @@ namespace Enhanced_Development.Shields
         }
 
         //On spawn, get the power component reference
-        public override void SpawnSetup(Map map)
+        public override void SpawnSetup(Map map, bool respawningAfterLoad = false)
         {
             //Log.Message("SS");
             //Setup UI
@@ -195,8 +195,8 @@ namespace Enhanced_Development.Shields
 
             UI_SHOW_ON = ContentFinder<Texture2D>.Get("UI/ShieldShowOn", true);
             UI_SHOW_OFF = ContentFinder<Texture2D>.Get("UI/ShieldShowOff", true);
-
-            base.SpawnSetup(map);
+            
+            base.SpawnSetup(map, respawningAfterLoad);
             this.m_Power = base.GetComp<CompPowerTrader>();
 
             if (def is ShieldBuildingThingDef)
@@ -469,10 +469,10 @@ namespace Enhanced_Development.Shields
             for (int i = 0, l = things.Count(); i < l; i++)
             {
 
-                if (things[i] != null && things[i] is Projectile)
+                if (things[i] != null && (things[i] is Projectile || things[i] is CombatExtended.ProjectileCE))
                 {
                     //Assign to variable
-                    Projectile pr = (Projectile)things[i];
+                    ThingWithComps pr = (ThingWithComps)things[i];
                     if (!pr.Destroyed && ((this.m_BlockIndirect_Avalable && this.m_BlockDirect_Active && pr.def.projectile.flyOverhead) || (this.m_BlockDirect_Avalable && this.m_BlockIndirect_Active && !pr.def.projectile.flyOverhead)))
                     {
                         bool wantToIntercept = true;
@@ -481,7 +481,15 @@ namespace Enhanced_Development.Shields
                         if (_IFFCheck == true)
                         {
                             //Log.Message("IFFcheck == true");
-                            Thing launcher = ReflectionHelper.GetInstanceField(typeof(Projectile), pr, "launcher") as Thing;
+                            Thing launcher = null;
+                            if (pr is Projectile)
+                            {
+                                launcher = ReflectionHelper.GetInstanceField(typeof(Projectile), pr, "launcher") as Thing;
+                            } else
+                            {
+                                launcher = ReflectionHelper.GetInstanceField(typeof(CombatExtended.ProjectileCE), pr, "launcher") as Thing;
+                            }
+                            
 
                             if (launcher != null)
                             {
@@ -519,9 +527,24 @@ namespace Enhanced_Development.Shields
                         {
 
                             //Detect proper collision using angles
-                            Quaternion targetAngle = pr.ExactRotation;
+                            Quaternion targetAngle = new Quaternion();
+                            if (pr is Projectile)
+                            {
+                                targetAngle = (pr as Projectile).ExactRotation;
+                            } else
+                            {
+                                targetAngle = (pr as CombatExtended.ProjectileCE).ExactRotation;
+                            }
 
-                            Vector3 projectilePosition2D = pr.ExactPosition;
+                            Vector3 projectilePosition2D = new Vector3();
+                            if (pr is Projectile)
+                            {
+                                projectilePosition2D = (pr as Projectile).ExactPosition;
+                            } else
+                            {
+                                projectilePosition2D = (pr as CombatExtended.ProjectileCE).ExactPosition;
+                            }
+
                             projectilePosition2D.y = 0;
 
                             Vector3 shieldPosition2D = Vectors.IntVecToVec(this.Position);
@@ -532,9 +555,8 @@ namespace Enhanced_Development.Shields
 
                             if ((Quaternion.Angle(targetAngle, shieldProjAng) > 90))
                             {
-
                                 //On hit effects
-                                MoteMaker.ThrowLightningGlow(pr.ExactPosition, this.Map, 0.5f);
+                                MoteMaker.ThrowLightningGlow(projectilePosition2D, this.Map, 0.5f);
                                 //On hit sound
                                 HitSoundDef.PlayOneShot((SoundInfo)new TargetInfo(this.Position, this.Map, false));
 
@@ -576,7 +598,7 @@ namespace Enhanced_Development.Shields
         /// </summary>
         /// <param name="projectile">The specific projectile that is being checked</param>
         /// <returns>True if the projectile will land close, false if it will be far away.</returns>
-        public bool WillTargetLandInRange(Projectile projectile)
+        public bool WillTargetLandInRange(ThingWithComps projectile)
         {
             Vector3 targetLocation = GetTargetLocationFromProjectile(projectile);
 
@@ -590,7 +612,7 @@ namespace Enhanced_Development.Shields
             }
         }
 
-        public Vector3 GetTargetLocationFromProjectile(Projectile projectile)
+        public Vector3 GetTargetLocationFromProjectile(ThingWithComps projectile)
         {
             FieldInfo fieldInfo = projectile.GetType().GetField("destination", BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
             Vector3 reoveredVector = (Vector3)fieldInfo.GetValue(projectile);
@@ -1095,40 +1117,40 @@ namespace Enhanced_Development.Shields
 
             //  Scribe_Deep.LookDeep(ref shieldField, "shieldField");
 
-            Scribe_Values.LookValue(ref m_BlockIndirect_Active, "m_BlockIndirect_Active");
-            Scribe_Values.LookValue(ref m_BlockDirect_Active, "m_BlockDirect_Active");
-            Scribe_Values.LookValue(ref m_FireSupression_Active, "m_FireSupression_Active");
-            Scribe_Values.LookValue(ref m_RepairMode_Active, "m_RepairMode_Active");
-            Scribe_Values.LookValue(ref m_ShowVisually_Active, "m_ShowVisually_Active");
-            Scribe_Values.LookValue(ref m_InterceptDropPod_Active, "m_InterceptDropPod_Active");
+            Scribe_Values.Look(ref m_BlockIndirect_Active, "m_BlockIndirect_Active");
+            Scribe_Values.Look(ref m_BlockDirect_Active, "m_BlockDirect_Active");
+            Scribe_Values.Look(ref m_FireSupression_Active, "m_FireSupression_Active");
+            Scribe_Values.Look(ref m_RepairMode_Active, "m_RepairMode_Active");
+            Scribe_Values.Look(ref m_ShowVisually_Active, "m_ShowVisually_Active");
+            Scribe_Values.Look(ref m_InterceptDropPod_Active, "m_InterceptDropPod_Active");
 
-            Scribe_Values.LookValue(ref m_BlockIndirect_Avalable, "m_BlockIndirect_Avalable");
-            Scribe_Values.LookValue(ref m_BlockDirect_Avalable, "m_BlockDirect_Avalable");
-            Scribe_Values.LookValue(ref m_FireSupression_Avalable, "m_FireSupression_Avalable");
-            Scribe_Values.LookValue(ref m_InterceptDropPod_Avalable, "m_InterceptDropPod_Avalable");
+            Scribe_Values.Look(ref m_BlockIndirect_Avalable, "m_BlockIndirect_Avalable");
+            Scribe_Values.Look(ref m_BlockDirect_Avalable, "m_BlockDirect_Avalable");
+            Scribe_Values.Look(ref m_FireSupression_Avalable, "m_FireSupression_Avalable");
+            Scribe_Values.Look(ref m_InterceptDropPod_Avalable, "m_InterceptDropPod_Avalable");
 
-            Scribe_Values.LookValue(ref m_StructuralIntegrityMode, "m_StructuralIntegrityMode");
+            Scribe_Values.Look(ref m_StructuralIntegrityMode, "m_StructuralIntegrityMode");
 
-            Scribe_Values.LookValue(ref m_FieldIntegrity_Max, "m_FieldIntegrity_Max");
-            Scribe_Values.LookValue(ref m_FieldIntegrity_Initial, "m_FieldIntegrity_Initial");
-            Scribe_Values.LookValue(ref m_Field_Radius, "m_Field_Radius");
+            Scribe_Values.Look(ref m_FieldIntegrity_Max, "m_FieldIntegrity_Max");
+            Scribe_Values.Look(ref m_FieldIntegrity_Initial, "m_FieldIntegrity_Initial");
+            Scribe_Values.Look(ref m_Field_Radius, "m_Field_Radius");
 
-            Scribe_Values.LookValue(ref m_PowerRequired_Charging, "m_PowerRequired_Charging");
-            Scribe_Values.LookValue(ref m_PowerRequired_Sustaining, "m_PowerRequired_Sustaining");
+            Scribe_Values.Look(ref m_PowerRequired_Charging, "m_PowerRequired_Charging");
+            Scribe_Values.Look(ref m_PowerRequired_Sustaining, "m_PowerRequired_Sustaining");
 
-            Scribe_Values.LookValue(ref m_RechargeTickDelayInterval, "m_shieldRechargeTickDelay");
-            Scribe_Values.LookValue(ref m_RecoverWarmupDelayTicks, "m_shieldRecoverWarmup");
-            Scribe_Values.LookValue(ref m_StructuralIntegrityMode, "m_StructuralIntegrityMode");
-            Scribe_Values.LookValue(ref m_StructuralIntegrityMode, "m_StructuralIntegrityMode");
+            Scribe_Values.Look(ref m_RechargeTickDelayInterval, "m_shieldRechargeTickDelay");
+            Scribe_Values.Look(ref m_RecoverWarmupDelayTicks, "m_shieldRecoverWarmup");
+            Scribe_Values.Look(ref m_StructuralIntegrityMode, "m_StructuralIntegrityMode");
+            Scribe_Values.Look(ref m_StructuralIntegrityMode, "m_StructuralIntegrityMode");
 
-            Scribe_Values.LookValue(ref m_ColourRed, "m_colourRed");
-            Scribe_Values.LookValue(ref m_ColourGreen, "m_colourGreen");
-            Scribe_Values.LookValue(ref m_ColourBlue, "m_colourBlue");
+            Scribe_Values.Look(ref m_ColourRed, "m_colourRed");
+            Scribe_Values.Look(ref m_ColourGreen, "m_colourGreen");
+            Scribe_Values.Look(ref m_ColourBlue, "m_colourBlue");
 
-            Scribe_Values.LookValue(ref m_WarmupTicksRemaining, "m_WarmupTicksRemaining");
+            Scribe_Values.Look(ref m_WarmupTicksRemaining, "m_WarmupTicksRemaining");
 
-            Scribe_Values.LookValue(ref m_CurrentStatus, "m_CurrentStatus");
-            Scribe_Values.LookValue(ref m_FieldIntegrity_Current, "m_FieldIntegrity_Current");
+            Scribe_Values.Look(ref m_CurrentStatus, "m_CurrentStatus");
+            Scribe_Values.Look(ref m_FieldIntegrity_Current, "m_FieldIntegrity_Current");
         }
 
         #endregion
